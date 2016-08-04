@@ -66,3 +66,4 @@ include include/automake.mk
 include third-party/automake.mk
 include debian/automake.mk
 include hw-lib/automake.mk
+include stack_manager/automake.mk
