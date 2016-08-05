@@ -75,19 +75,27 @@ main(int argc, char *argv[])
 	while(1){
 		int retval;
 		unsigned int i;
+		
 		printf("loop = %d\n",loop++);
+		{
+			int retval;
+			struct vconn *new_vconn;
+			retval = pvconn_accept(pvconn, OFP_VERSION, &new_vconn);
+			if(!retval) {
+				test_p = rconn_new_from_vconn("passive", new_vconn);
+				printf("accepted\n");
+			}
+		}
+		rconn_run(test_a);
+		if(rconn_is_connected(test_a)) {
+			printf("test_a is connected\n");
+		}
 		if(test_p) {
-			rconn_run_wait(test_a);
-			rconn_run(test_a);
-			rconn_run_wait(test_p);
 			rconn_run(test_p);
-			if (rconn_is_connected(test_a))
-				printf("test_a is connected\n");
 			if (rconn_is_connected(test_p))
 				printf("test_p is connected\n");
 			if (rconn_is_connected(test_a) && rconn_is_connected(test_p)) {
-				for(i = 0; i < 50; i++)
-				{
+				for(i = 0; i < 50; i++) {
 					if(buffer_a == NULL) {
 						buffer_a = rconn_recv(test_a);
 					}
@@ -100,7 +108,6 @@ main(int argc, char *argv[])
 						}
 					}
 					if(buffer_p == NULL) {
-						
 						buffer_p = rconn_recv(test_p);
 					}
 					if(buffer_p != NULL){
@@ -112,24 +119,13 @@ main(int argc, char *argv[])
 						}
 					}
 				}
-				rconn_run_wait(test_p);
-				rconn_recv_wait(test_a);
-				rconn_recv_wait(test_p);
 			}
+			rconn_run_wait(test_p);
+			rconn_recv_wait(test_p);
 		}
 		rconn_run_wait(test_a);
-		rconn_run(test_a);
+		rconn_recv_wait(test_a);
 		pvconn_wait(pvconn);
-		{
-			int retval;
-			struct vconn *new_vconn;
-			retval = pvconn_accept(pvconn, OFP_VERSION, &new_vconn);
-			if(!retval){
-				test_p = rconn_new_from_vconn("passive", new_vconn);
-				printf("accepted\n");
-				rconn_run(test_p);
-			}
-		}
 		poll_block();
 	}
     return 0;
