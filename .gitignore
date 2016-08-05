@@ -42,3 +42,4 @@ cscope.*
 ext.m4
 ext.mk
 tags
+*.dirstamp
