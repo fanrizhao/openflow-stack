@@ -69,12 +69,12 @@ main(int argc, char *argv[])
 		printf("retval = %d\n", retval);
 	}
 	{
-		r_dp0 = rconn_create(0, 0);
+//		r_dp0 = rconn_create(0, 0);
 		r_dp1 = rconn_create(0, 0);
 		/*
 		 *  dp0 local_board0, dp1 board1
 		 */
-		rconn_connect(r_dp0, "tcp:127.0.0.1:6631");
+//		rconn_connect(r_dp0, "tcp:127.0.0.1:6631");
 		rconn_connect(r_dp1, "tcp:192.168.1.15:6631");
 	}
 	
@@ -91,13 +91,13 @@ main(int argc, char *argv[])
 				printf("accepted\n");
 			}
 		}
-		rconn_run(r_dp0);
+	//	rconn_run(r_dp0);
 		rconn_run(r_dp1);
 		if(p_secchan) {
 			rconn_run(p_secchan);
-			if (rconn_is_connected(r_dp0) && rconn_is_connected(r_dp1) && rconn_is_connected(p_secchan)) {
+			if (rconn_is_connected(r_dp1) && rconn_is_connected(p_secchan)) {
 				for(i = 0; i < 50; i++) {
-					if(buf_dp0 == NULL) {
+			/*		if(buf_dp0 == NULL) {
 						buf_dp0 = rconn_recv(r_dp0);
 					}
 					if(buf_dp0 != NULL) {
@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 							buf_dp0 = NULL;
 						}
 					}
-					
+			*/		
 					if(buf_dp1 == NULL) {
                                                 buf_dp1 = rconn_recv(r_dp1);
                                         }
@@ -143,9 +143,9 @@ main(int argc, char *argv[])
 			rconn_run_wait(p_secchan);
 			rconn_recv_wait(p_secchan);
 		}
-		rconn_run_wait(r_dp0);
+	//	rconn_run_wait(r_dp0);
 		rconn_run_wait(r_dp1);
-		rconn_recv_wait(r_dp0);
+	//	rconn_recv_wait(r_dp0);
                 rconn_recv_wait(r_dp1);
 		pvconn_wait(pvconn);
 		poll_block();
