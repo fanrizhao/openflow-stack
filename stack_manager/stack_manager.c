@@ -144,7 +144,9 @@ main(int argc, char *argv[])
 			rconn_recv_wait(p_secchan);
 		}
 		rconn_run_wait(r_dp0);
+		rconn_run_wait(r_dp1);
 		rconn_recv_wait(r_dp0);
+                rconn_recv_wait(r_dp1);
 		pvconn_wait(pvconn);
 		poll_block();
 	}
