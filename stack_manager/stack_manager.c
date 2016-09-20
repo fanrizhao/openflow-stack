@@ -36,45 +36,48 @@ static void usage(void) NO_RETURN;
 int
 main(int argc, char *argv[])
 {
-	struct rconn *r_dp0 = NULL;
-	struct rconn *r_dp1 = NULL;
-	struct rconn *p_secchan = NULL;
-	struct pvconn *pvconn = NULL;
-	struct ofpbuf *buf_dp0 = NULL;
-	struct ofpbuf *buf_dp1 = NULL;
-	struct ofpbuf *buf_secchan = NULL;
-	unsigned int p_rx = 0;
-	unsigned int p_tx = 0;
-	unsigned int a_rx = 0;
-	unsigned int a_tx = 0;
+	struct stMm stMm;
+//	struct rconn *r_dp0 = NULL;
+//	struct rconn *r_dp1 = NULL;
+//	struct rconn *p_secchan = NULL;
+//	struct pvconn *pvconn = NULL;
+//	struct ofpbuf *buf_dp0 = NULL;
+//	struct ofpbuf *buf_dp1 = NULL;
+//	struct ofpbuf *buf_secchan = NULL;
+//	unsigned int p_rx = 0;
+//	unsigned int p_tx = 0;
+//	unsigned int a_rx = 0;
+//	unsigned int a_tx = 0;
 	
 	set_program_name(argv[0]);
 	register_fault_handlers();
 	
 	time_init();
 	vlog_init();
-	parse_options(argc, argv);
+	parse_options(ar gc, argv);
 	signal(SIGPIPE, SIG_IGN);
 	die_if_already_running();
 	daemonize();
 	 
 	{
 		int retval;
+		struct pvconn *pvconn = NULL;
 		retval = pvconn_open("ptcp:6632", &pvconn);
 		if (!retval || retval == EAGAIN) {
-			printf("succesive open pvconn\n");
+			printf("succesive open secchan\n");
+			stMm->pvconn = pvconn;
         	} else {
-			printf("fault\n");
+			printf("fail to open secchan\n");
+			
 		}
-		printf("retval = %d\n", retval);
 	}
 	{
-//		r_dp0 = rconn_create(0, 0);
+		r_dp0 = rconn_create(0, 0);
 		r_dp1 = rconn_create(0, 0);
 		/*
 		 *  dp0 local_board0, dp1 board1
 		 */
-//		rconn_connect(r_dp0, "tcp:127.0.0.1:6631");
+		rconn_connect(r_dp0, "tcp:127.0.0.1:6631");
 		rconn_connect(r_dp1, "tcp:192.168.1.15:6631");
 	}
 	
@@ -88,35 +91,35 @@ main(int argc, char *argv[])
 			retval = pvconn_accept(pvconn, OFP_VERSION, &new_vconn);
 			if(!retval) {
 				p_secchan = rconn_new_from_vconn("passive", new_vconn);
-				printf("accepted\n");
+				printf("secchan accepted\n");
 			}
 		}
-	//	rconn_run(r_dp0);
+		rconn_run(r_dp0);
 		rconn_run(r_dp1);
 		if(p_secchan) {
 			rconn_run(p_secchan);
-			if (rconn_is_connected(r_dp1) && rconn_is_connected(p_secchan)) {
+			if (rconn_is_connected(r_dp0) && rconn_is_connected(r_dp1) && rconn_is_connected(p_secchan)) {
 				for(i = 0; i < 50; i++) {
-			/*		if(buf_dp0 == NULL) {
+					if(buf_dp0 == NULL) {
 						buf_dp0 = rconn_recv(r_dp0);
 					}
 					if(buf_dp0 != NULL) {
-						printf("active recive %d'th packet\n",++a_rx);
+						printf("dp0 recive %d'th packet\n",++a_rx);
 						retval = rconn_send(p_secchan, buf_dp0, NULL);
 						if(!retval) {
-							printf("passive transmit %d'th packet\n",++p_tx);
+							printf("secchan transmit %d'th packet\n",++p_tx);
 							buf_dp0 = NULL;
 						}
 					}
-			*/		
+					
 					if(buf_dp1 == NULL) {
                                                 buf_dp1 = rconn_recv(r_dp1);
                                         }
                                         if(buf_dp1 != NULL) {
-                                                printf("active recive %d'th packet\n",++a_rx);
+                                                printf("dp1 recive %d'th packet\n",++a_rx);
                                                 retval = rconn_send(p_secchan, buf_dp1, NULL);
                                                 if(!retval) {
-                                                        printf("passive transmit %d'th packet\n",++p_tx);
+                                                        printf("secchan transmit %d'th packet\n",++p_tx);
                                                         buf_dp1 = NULL;
                                                 }
                                         }
@@ -125,27 +128,36 @@ main(int argc, char *argv[])
 						buf_secchan = rconn_recv(p_secchan);
 					}
 					if(buf_secchan != NULL){
-						printf("passive recive %d'th packet\n",++p_rx);
-						retval = rconn_send(r_dp0, buf_secchan, NULL);
+						struct ofpbuf *buf_dp0_tx = ofpbuf_clone(buf_secchan);
+						struct ofpbuf *buf_dp1_tx = ofpbuf_clone(buf_secchan);
+						ofpbuf_delete(buf_secchan);
+						buf_secchan = NULL;
+						printf("secchan recive %d'th packet\n",++p_rx);
+
+						retval = rconn_send(r_dp0, buf_dp0_tx, NULL);
 						if(!retval) {
-							printf("active transmit %d'th packet\n",++a_tx);
-							buf_secchan = NULL;
+							printf("dp0 transmit %d'th packet\n",++a_tx);
 						}
-						
-						retval = rconn_send(r_dp1, buf_secchan, NULL);
+						else {
+							ofpbuf_delete(buf_dp0_tx);
+						}
+
+						retval = rconn_send(r_dp1, buf_dp1_tx, NULL);
                                                 if(!retval) {
-                                                        printf("active transmit %d'th packet\n",++a_tx);
-                                                        buf_secchan = NULL;
+                                                        printf("dp1 transmit %d'th packet\n",++a_tx);
                                                 }
+						else {
+							ofpbuf_delete(buf_dp1_tx);
+						}
 					}
 				}
 			}
 			rconn_run_wait(p_secchan);
 			rconn_recv_wait(p_secchan);
 		}
-	//	rconn_run_wait(r_dp0);
+		rconn_run_wait(r_dp0);
 		rconn_run_wait(r_dp1);
-	//	rconn_recv_wait(r_dp0);
+		rconn_recv_wait(r_dp0);
                 rconn_recv_wait(r_dp1);
 		pvconn_wait(pvconn);
 		poll_block();

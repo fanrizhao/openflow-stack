@@ -7,7 +7,19 @@
 #include "list.h"
 #include "packets.h"
 
+struct stDp_conn {
+	struct *rconn rconn;
+	struct *ofpbuf txbuf;
+	struct *ofpbuf rxbuf;
+	unsigned int txcnt;
+	unsigned int rxcnt;
+	};
 
+struct stMm {
+	struct *pvconn stMm_pvconn;
+	struct stDp_conn secchan;
+	struct stDp_conn dp[4];
+	};
 
 
 #endif /*STACK_MANAGER_H_*/
