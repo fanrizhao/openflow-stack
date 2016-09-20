@@ -36,33 +36,32 @@ static void usage(void) NO_RETURN;
 int
 main(int argc, char *argv[])
 {
-    struct rconn *test_a = NULL;
-    struct rconn *test_p = NULL;
-    struct pvconn *pvconn = NULL;
-    struct ofpbuf *buffer_a = NULL;
+	struct rconn *test_a = NULL;
+	struct rconn *test_p = NULL;
+	struct pvconn *pvconn = NULL;
+	struct ofpbuf *buffer_a = NULL;
 	struct ofpbuf *buffer_p = NULL;
-	int loop = 0;
 	unsigned int p_rx = 0;
 	unsigned int p_tx = 0;
 	unsigned int a_rx = 0;
 	unsigned int a_tx = 0;
 	
-    set_program_name(argv[0]);
-    register_fault_handlers();
-    
-    time_init();
-    vlog_init();
-    parse_options(argc, argv);
-    signal(SIGPIPE, SIG_IGN);
-    die_if_already_running();
-    daemonize();
-    
+	set_program_name(argv[0]);
+	register_fault_handlers();
+	
+	time_init();
+	vlog_init();
+	parse_options(argc, argv);
+	signal(SIGPIPE, SIG_IGN);
+	die_if_already_running();
+	daemonize();
+	 
 	{
 		int retval;
 		retval = pvconn_open("ptcp:6632", &pvconn);
 		if (!retval || retval == EAGAIN) {
 			printf("succesive open pvconn\n");
-        } else {
+        	} else {
 			printf("fault\n");
 		}
 		printf("retval = %d\n", retval);
@@ -76,7 +75,6 @@ main(int argc, char *argv[])
 		int retval;
 		unsigned int i;
 		
-		printf("loop = %d\n",loop++);
 		{
 			int retval;
 			struct vconn *new_vconn;
