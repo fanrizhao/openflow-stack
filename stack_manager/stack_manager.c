@@ -123,17 +123,17 @@ main(int argc, char *argv[])
 					}
 					
 					if(buf_dp1 == NULL) {
-                                                buf_dp1 = rconn_recv(r_dp1);
-                                        }
-                                        if(buf_dp1 != NULL) {
-                                                printf("dp1 recive %d'th packet\n",++a_rx);
-                                                retval = rconn_send(p_secchan, buf_dp1, NULL);
-                                                if(!retval) {
-                                                        printf("secchan transmit %d'th packet\n",++p_tx);
-                                                        buf_dp1 = NULL;
+						buf_dp1 = rconn_recv(r_dp1);
+					}
+					if(buf_dp1 != NULL) {
+						printf("dp1 recive %d'th packet\n",++a_rx);
+						retval = rconn_send(p_secchan, buf_dp1, NULL);
+						if(!retval) {
+							printf("secchan transmit %d'th packet\n",++p_tx);
+							buf_dp1 = NULL;
 						}
 					}
-
+					
 					if(buf_secchan == NULL) {
 						buf_secchan = rconn_recv(p_secchan);
 					}
@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 						ofpbuf_delete(buf_secchan);
 						buf_secchan = NULL;
 						printf("secchan recive %d'th packet\n",++p_rx);
-
+						
 						retval = rconn_send(r_dp0, buf_dp0_tx, NULL);
 						if(!retval) {
 							printf("dp0 transmit %d'th packet\n",++a_tx);
@@ -154,7 +154,7 @@ main(int argc, char *argv[])
 						
 						retval = rconn_send(r_dp1, buf_dp1_tx, NULL);
 						if(!retval) {
-                                                        printf("dp1 transmit %d'th packet\n",++a_tx);
+							printf("dp1 transmit %d'th packet\n",++a_tx);
 						}
 						else {
 							ofpbuf_delete(buf_dp1_tx);
