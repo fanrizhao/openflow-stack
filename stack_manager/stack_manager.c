@@ -30,6 +30,7 @@
 #include "vlog.h"
 #define THIS_MODULE VLM_stack_manager
 
+
 static void parse_options(int argc, char *argv[]);
 static void usage(void) NO_RETURN;
 
@@ -37,17 +38,8 @@ int
 main(int argc, char *argv[])
 {
 	struct stMm *stMm = malloc(sizeof(*stMm));
-//	struct rconn *r_dp0 = NULL;
-//	struct rconn *r_dp1 = NULL;
-//	struct rconn *p_secchan = NULL;
-//	struct pvconn *pvconn = NULL;
-//	struct ofpbuf *buf_dp0 = NULL;
-//	struct ofpbuf *buf_dp1 = NULL;
-//	struct ofpbuf *buf_secchan = NULL;
-//	unsigned int p_rx = 0;
-//	unsigned int p_tx = 0;
-//	unsigned int a_rx = 0;
-//	unsigned int a_tx = 0;
+	
+	struct setting s;
 	
 	set_program_name(argv[0]);
 	register_fault_handlers();
@@ -58,21 +50,20 @@ main(int argc, char *argv[])
 	signal(SIGPIPE, SIG_IGN);
 	die_if_already_running();
 	daemonize();
+	
+	/*
+	 * Initialize Stack Managment
+	 */
 	stMm->pvconn = NULL;
 	stMm->secchan = NULL;
 	for(int index = 0; inedx < 4; index++) {
 		stMm->dp[index] = NULL;
 	}
 	stMm->dp_num = 0;
-	for(int index = 0; index < 4; index++) {
-		struct stDp_conn *dp = malloc(sizeof(*stDp_conn));
-		dp->rconn = NULL;
-		dp->rxbuf = NULL;
-		dp->rxcnt = 0; 
-		dp->txbuf = NULL;
-		dp->txcnt = 0;
-		stMm->dp[index] = dp;
-	}
+	
+	/*
+	 * Initialize passive vconn for connecting secure channel
+	 */
 	{
 		int retval;
 		struct pvconn *pvconn = NULL;
@@ -85,11 +76,25 @@ main(int argc, char *argv[])
 			return -1;	
 		}
 	}
+	
+	/*
+	 * Initialize rconn for connecting datapath
+	 */
 	for(int index = 0; index < 4; index++) {
-		stMm->dp[index] = rconn_create(0, 0)
+		if(s.dp_name[index][0] != "\0") {
+			struct stDp_conn *dp = malloc(sizeof(*stDp_conn));
+			struct rconn *rconn = rconn_create(0, 0);
+			rconn_connect(rconn, s.dp_name[index]);
+			dp->rconn = rconn;
+			dp->rxbuf = NULL;
+			dp->rxcnt = 0; 
+			dp->txbuf = NULL;
+			dp->txcnt = 0;
+			stMm->dp[index] = dp;
+		}
 	}
-	rconn_connect(stMm->dp[0], "tcp:127.0.0.1:6631");
-	rconn_connect(stMm->dp[1], "tcp:192.168.1.15:6631");
+	rconn_connect(stMm->dp[0]->rconn, "tcp:127.0.0.1:6631");
+	rconn_connect(stMm->dp[1]->rconn, "tcp:192.168.1.15:6631");
 	
 	
 	while(1){
@@ -101,11 +106,12 @@ main(int argc, char *argv[])
 			struct vconn *new_vconn = NULL;
 			retval = pvconn_accept(pvconn, OFP_VERSION, &new_vconn);
 			if(!retval) {
-				stMm->secchan = rconn_new_from_vconn("passive", new_vconn);
+				struct stDp_conn *secchan = stMm->secchan;
+				secchan->rconn = rconn_new_from_vconn("passive", new_vconn);
 				printf("secchan accepted\n");
 			}
 		}
-		for
+		
 		if(p_secchan) {
 			rconn_run(p_secchan);
 			if (rconn_is_connected(r_dp0) && rconn_is_connected(r_dp1) && rconn_is_connected(p_secchan)) {
@@ -186,7 +192,7 @@ parse_options(int argc, char *argv[])
     	};
 	static struct option long_options[] = {
 		{"accept-vconn", required_argument, 0, OPT_ACCEPT_VCONN},
-		{"verbose",     optional_argument, 0, 'v'},
+		{"verbose",	optional_argument, 0, 'v'},
 		{"help",        no_argument, 0, 'h'},
 		{"version",     no_argument, 0, 'V'},
 		DAEMON_LONG_OPTIONS,
@@ -205,7 +211,7 @@ parse_options(int argc, char *argv[])
 		if (c == -1) {
 			break;
 		}
-
+		
 		switch (c) {
 			case 'h':
 				usage();
@@ -235,29 +241,28 @@ parse_options(int argc, char *argv[])
 	free(short_options);
 	argc -= optind;
 	argv += optind;
-/*	if (argc < 1 || argc > 2) {
+	if (argc != 2) {
 	ofp_fatal(0,
-	"need one or two non-option arguments; "
-	"use --help for usage");
-	}*/
+		"need two non-option arguments;"
+		"use --help for usage");
+	}
 }
 
 static void
 usage(void)
 {
-	printf("%s: secure channel, a relay for OpenFlow messages.\n"
-		"usage: %s [OPTIONS] DATAPATH [CONTROLLER]\n"
+	printf("%s: stack managment, a managment for OpenFlow stack switch.\n"
+		"usage: %s [OPTIONS] DATAPATHES SECCHAN\n"
 		"DATAPATH is an active connection method to a local datapath.\n"
-		"CONTROLLER is an active OpenFlow connection method; if it is\n"
-		"omitted, then secchan performs controller discovery.\n",
+		"SECCHAN is an passive OpenFlow connection method to a remote secure channel.\n",
 		program_name, program_name);
-		vconn_usage(true, true, true);
+	vconn_usage(true, true, true);
 	printf(" ");
 	daemon_usage();
 	vlog_usage();
 	printf("\nOther options:\n"
-		"  -h, --help              display this help message\n"
-		"  -V, --version           display version information\n");
+		"  -h, --help		display this help message\n"
+		"  -V, --version	display version information\n");
 	leak_checker_usage();
 	exit(EXIT_SUCCESS);
 }
