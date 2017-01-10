@@ -41,6 +41,13 @@ main(int argc, char *argv[])
 	
 	struct setting s;
 	
+	char name[4][] = {
+		{"tcp:127.0.0.1:6631"},
+		{"tcp:192.168.1.15:6631"},
+		{"\0"},
+		{"\0"}
+		};
+	
 	set_program_name(argv[0]);
 	register_fault_handlers();
 	
@@ -62,26 +69,38 @@ main(int argc, char *argv[])
 	stMm->dp_num = 0;
 	
 	/*
+	 * Set datapath
+	 */
+	s.dp_names[0] = name[0];
+	s.dp_names[1] = name[1];
+	s.dp_names[2] = name[2];
+	s.dp_names[3] = name[3];
+	s.num_datapath = 2;
+	
+	/*
 	 * Initialize passive vconn for connecting secure channel
 	 */
 	{
 		int retval;
 		struct pvconn *pvconn = NULL;
 		retval = pvconn_open("ptcp:6632", &pvconn);
-		if (!retval || retval == EAGAIN) {
+		if (!retval) {
 			printf("succesive open secchan\n");
 			stMm->pvconn = pvconn;
+		} else if (retval == EAGAIN) {
+			printf("try again\n");
+			exit(EXIT_FAILURE);
         	} else {
 			printf("fail to open secchan\n");
-			return -1;	
+			exit(EXIT_FAILURE);	
 		}
 	}
 	
 	/*
-	 * Initialize rconn for connecting datapath
+	 * Initialize rconn for connecting datapath and securce channel
 	 */
 	for(int index = 0; index < 4; index++) {
-		if(s.dp_name[index][0] != "\0") {
+		if(s.dp_names[index][0] != "\0") {
 			struct stDp_conn *dp = malloc(sizeof(*stDp_conn));
 			struct rconn *rconn = rconn_create(0, 0);
 			rconn_connect(rconn, s.dp_name[index]);
@@ -92,10 +111,16 @@ main(int argc, char *argv[])
 			dp->txcnt = 0;
 			stMm->dp[index] = dp;
 		}
+	}	
+	{
+		struct stDp_conn *secchan = malloc(sizeof(stDp_conn));
+		secchan->rconn = NULL;
+		secchan->rxbuf = NULL;
+		secchan->rxcnt = 0;
+;		secchan->txbuf = NULL;
+		secchan->txcnt = 0;
+		dp->secchan = secchan;
 	}
-	rconn_connect(stMm->dp[0]->rconn, "tcp:127.0.0.1:6631");
-	rconn_connect(stMm->dp[1]->rconn, "tcp:192.168.1.15:6631");
-	
 	
 	while(1){
 		int retval;
@@ -106,9 +131,22 @@ main(int argc, char *argv[])
 			struct vconn *new_vconn = NULL;
 			retval = pvconn_accept(pvconn, OFP_VERSION, &new_vconn);
 			if(!retval) {
-				struct stDp_conn *secchan = stMm->secchan;
-				secchan->rconn = rconn_new_from_vconn("passive", new_vconn);
+				struct stDp_conn *sc = stMm->secchan;
+				sc->rconn = rconn_new_from_vconn("passive", new_vconn);
 				printf("secchan accepted\n");
+			}
+		}
+		{
+			struct stDp_conn *sc = stMm->secchan;
+			if(sc->rconn)
+				rconn_run(sc->rconn);
+		}
+		{
+			for(int index = 0; index < 4; index ++) {
+				struct stDp_conn *dp = stMm->dp[index];
+				if(dp)
+					if(dp->rconn)
+						rconn_run(dp->rconn);
 			}
 		}
 		
@@ -171,10 +209,24 @@ main(int argc, char *argv[])
 			rconn_run_wait(p_secchan);
 			rconn_recv_wait(p_secchan);
 		}
-		rconn_run_wait(r_dp0);
-		rconn_run_wait(r_dp1);
-		rconn_recv_wait(r_dp0);
-		rconn_recv_wait(r_dp1);
+		{
+			struct stDp_conn *sc = stMm->secchan;
+			if(sc->rconn) {
+				rconn_run_wait(sc->rconn);
+				rconn_recv_wait(sc->rconn);
+			}
+		}
+		{
+			for(int index = 0; index < 4; index ++) {
+				struct stDp_conn *dp = stMm->dp[index];
+				if(dp) {
+					if(dp->rconn) {
+						rconn_run_wait(dp->rconn);
+						rconn_recv_wait(dp->rconn);
+					}
+				}
+			}
+		}
 		pvconn_wait(pvconn);
 		poll_block();
 	}

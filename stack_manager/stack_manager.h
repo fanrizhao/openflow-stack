@@ -29,9 +29,9 @@ struct settings {
 	bool in_band;				/* Connect to controller in-band? */
 	
 	/* Related vconns and network devices. */
-	const char *dp_name[4];			/* Local datapath. */
-	int num_datapath;			/* Number of configured controllers. */
-	const char *sc_names;			/* Controllers (if not discovery mode). */
+	const char *dp_names[4];		/* Local datapath. */
+	int num_datapath;			/* Number of datapath. */
+	const char *sc_name;			/* Controllers (if not discovery mode). */
 	
 	/* Failure behavior. */
 	enum fail_mode fail_mode;		/* Act as learning switch if no controller? */
